@@ -1,3 +1,8 @@
+# Changes over Moshi-Finetune
+For hibiki fine-tuning, we need conditional voice evaluation as mentioned in their paper. However, as voice only generated with batch, it produce `AssertionError` for single batched input due to condition_tensors being `None`. Solved this by generating a conditioned tensor before passing input to the model.
+
+
+
 # Moshi-Finetune
 
 <a target="_blank" href="https://colab.research.google.com/github//kyutai-labs/moshi-finetune/blob/main/tutorials/moshi_finetune.ipynb">

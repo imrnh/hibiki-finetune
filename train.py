@@ -43,6 +43,8 @@ from finetune.monitoring.utils import set_logger
 from finetune.utils import TrainState, logged_closing, set_random_seed
 from finetune.wrapped_model import get_fsdp_model
 from moshi.models import loaders
+from moshi.conditioners import ConditionAttributes
+
 
 logger = logging.getLogger("train")
 
@@ -50,6 +52,26 @@ logger = logging.getLogger("train")
 def main_logger_info(message: str) -> None:
     if get_rank() == 0:
         logger.info(message)
+
+def get_condition_tensors(lm, batch_size: int, cfg_coef: float):
+    condition_tensors = {}
+    if lm.condition_provider is not None and lm.condition_provider.conditioners:
+        conditions: list[ConditionAttributes] | None = None
+        conditions = [
+            ConditionAttributes(text={"description": "very_good"}, tensor={})
+            for _ in range(batch_size)
+        ]
+        if cfg_coef != 1.0:
+            # Extending the conditions with the negatives for the CFG.
+            conditions += [
+                ConditionAttributes(text={"description": "very_bad"}, tensor={})
+                for _ in range(batch_size)
+            ]
+
+        assert conditions is not None
+        prepared = lm.condition_provider.prepare(conditions)
+        condition_tensors = lm.condition_provider(prepared)
+    return condition_tensors
 
 
 def train(config: str):
@@ -250,6 +272,10 @@ def _train(args: TrainArgs, exit_stack: ExitStack):
                 condition_tensors = model.condition_provider.prepare(
                     batch.condition_attributes
                 )
+
+            if condition_tensors is None:
+              condition_tensors = get_condition_tensors(model, args.batch_size, 1.0)
+            #   print(f"\n\nGenerated condition_tensors: {condition_tensors}\n\n")
 
             # forward / backward
             output = model(codes=codes, condition_tensors=condition_tensors)

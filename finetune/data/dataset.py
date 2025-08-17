@@ -214,7 +214,6 @@ def get_dataset_iterator(
             else:
                 dataset = dataset.seq(skip=rank, step_by=world_size)
             for sample in dataset:
-                print(f"\n\nGenerated sample: {sample}")
                 wav = sample["data"][..., : sample["unpadded_len"]]
                 yield instruct_tokenizer(wav, sample["start_time_sec"], sample["path"])
         if is_finite:
